@@ -1,0 +1,52 @@
+# MTadbK project .rc configure 
+
+on post-fs-data
+#
+# SHARED_SDCARD related directory & configuration (begin)
+#
+
+# we will remap this as /mnt/sdcard with the sdcard fuse tool
+		mkdir /data/media 0770 media_rw media_rw
+		chown media_rw media_rw /data/media
+		
+#
+# SHARED_SDCARD related directory & configuration (end)
+#
+
+on init
+    mkdir /storage/sdcard1 0700 shell shell
+	mkdir /storage/NashaRxL 0555 root root
+	mkdir /storage/sdcard0 0000 system system
+    
+    export EXTERNAL_STORAGE /storage/sdcard1/0
+	export EMULATED_STORAGE_SOURCE /storage/sdcard1
+    export EMULATED_STORAGE_TARGET /storage/NashaRxL
+    export SECONDARY_STORAGE /storage/sdcard0
+
+    mount tmpfs tmpfs /storage/NashaRxL mode=0705,uid=1023,gid=1023
+    
+    # Support legacy paths
+	symlink /storage/sdcard1/0 /storage/NashaRxL/legacy
+	symlink /storage/sdcard1/0  /sdcard
+	symlink /storage/sdcard1/0  /mnt/sdcard
+	
+on post-fs
+    # mount shared so changes propagate into child namespaces
+	mount rootfs rootfs / shared rec
+    mount tmpfs tmpfs /mnt/secure private rec        
+	
+on fs
+    setprop ro.crypto.fuse_sdcard true
+#
+# SHARED_SDCARD related services (Begin)
+#
+
+on boot
+# create virtual SD card at /mnt/sdcard, based on the /data/media directory
+# daebmon will drop to user/group system/media_rw after initializing
+# underlying files in /data/media will be created with user and group media_rw (1023)
+service sdcard /system/bin/sdcard /data/media /storage/sdcard1  1023 1023
+	class late_start
+#
+# SHARED_SDCARD related services (End)
+#
